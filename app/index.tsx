@@ -29,25 +29,23 @@ export default function Home() {
   const theme = useTheme();
   const { signOut } = useAuth() as any;
   const auth = store.getState().auth;
-  const { data, error, isLoading, mutate } = useSWR<ITask[]>("/todo", fetcher);
-  const [visible, setVisible] = React.useState(false);
+  const { data, mutate } = useSWR<ITask[]>("/todo", fetcher);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [taskId, setTaskId] = useState<number | string>();
   const [taskItems, setTaskItems] = useState<ITask[]>([]);
 
   const [taskTitle, setTaskTitle] = useState<string>();
   const [taskDescription, setTaskDescription] = useState<string>();
 
-  const showModal = () => setVisible(true);
-  const hideModal = () => setVisible(false);
+  const showModal = () => setIsModalVisible(true);
+  const hideModal = () => setIsModalVisible(false);
 
   useEffect(() => {
     setTaskItems(data || []);
-    console.log("data ", data);
-    console.log("error ", error);
-    console.log("isLoading ", isLoading);
-  }, [data, error, isLoading]);
+  }, [data]);
 
-  const handlerCreateTask = () => {
-    console.log("user ", auth);
+  const handlerCreateOrUpdateTask = () => {
     if (taskTitle && taskDescription) {
       const newTask = {
         title: taskTitle,
@@ -56,11 +54,12 @@ export default function Home() {
         user: auth.account?.user.email,
       };
 
-      axiosService
-        .post("todo/", newTask)
-        .then((res) => {
-          console.log(res);
-          mutate([...taskItems, newTask]);
+      axiosService({
+        method: isEdit ? "put" : "post",
+        url: isEdit ? `todo/${taskId}/` : "todo/",
+        data: newTask,
+      }).then((res) => {
+          mutate();
         })
         .catch((err) => {
           console.log(err);
@@ -73,12 +72,26 @@ export default function Home() {
     }
   };
 
+  const handleOpenCreateModal = () => {
+    setTaskTitle("");
+    setTaskDescription("");
+    setIsEdit(false);
+    showModal();
+  };
+
+  const handleOpenEditModal = (id: number | string | undefined) => {
+    const task = taskItems.find((item) => item.id === id);
+    if (task) {
+      setTaskTitle(task.title);
+      setTaskDescription(task.description);
+      setTaskId(task.id);
+      setIsEdit(true);
+      showModal();
+    }
+  };
+
   const completeTask = (id: number | string | undefined) => {
     axiosService.delete(`todo/${id}/`).then((res) => {
-      // let itemsCopy = [...taskItems];
-
-      // itemsCopy = itemsCopy.filter((item) => item.id !== id);
-      
       mutate();
     }).catch((err) => {
       console.log(err);
@@ -118,6 +131,7 @@ export default function Home() {
                 title={item.title}
                 description={item.description}
                 onDelete={() => completeTask(item.id)}
+                onEdit={() => handleOpenEditModal(item.id)}
               />
             ))}
           </List.Section>
@@ -126,7 +140,7 @@ export default function Home() {
 
       <Portal>
         <Modal
-          visible={visible}
+          visible={isModalVisible}
           onDismiss={hideModal}
           contentContainerStyle={{
             ...styles.modalContainer,
@@ -150,8 +164,8 @@ export default function Home() {
             onChangeText={(text) => setTaskDescription(text)}
           />
 
-          <Button mode="contained" onPress={handlerCreateTask}>
-            Create Task
+          <Button mode="contained" onPress={handlerCreateOrUpdateTask}>
+            {isEdit ? "Update" : "Create"} Task
           </Button>
         </Modal>
       </Portal>
@@ -159,7 +173,7 @@ export default function Home() {
         icon="plus"
         label="New Task"
         style={styles.fab}
-        onPress={showModal}
+        onPress={handleOpenCreateModal}
       />
     </View>
   );

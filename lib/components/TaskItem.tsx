@@ -12,11 +12,12 @@ interface TaskItemProps {
   description: string;
   taskId: number | string;
   onDelete: (e: GestureResponderEvent) => void;
+  onEdit: (e: GestureResponderEvent) => void;
 }
 
 const TaskItem: React.FC<TaskItemProps> = (props) => {
   const theme = useTheme();
-  const { title, description, taskId, onDelete } = props;
+  const { title, description, taskId, onDelete, onEdit } = props;
 
   return (
     <Animated.View
@@ -34,6 +35,7 @@ const TaskItem: React.FC<TaskItemProps> = (props) => {
         descriptionNumberOfLines={3}
         key={taskId}
         descriptionStyle={{ fontSize: 8 }}
+        onPress={onEdit}
         right={() => (
           <View
             style={{
